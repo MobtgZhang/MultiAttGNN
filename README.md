@@ -1,0 +1,2 @@
+# MultiAttGNN
+The MultiAttGNN model 
