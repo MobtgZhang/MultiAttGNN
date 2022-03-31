@@ -2,13 +2,15 @@ import os
 import pickle
 import jieba
 import random
+import math
 
 from tqdm import tqdm
 import numpy as np
 import scipy.sparse as ssp
 import pandas as pd
 
-from src.data import Dictionary
+from .data import Dictionary
+from .adjacency import normalize_adj
 
 def build_dataset(dataset_file,save_dataset_file,sent_name):
     dataset = pd.read_csv(dataset_file)
@@ -84,9 +86,6 @@ def build_stop_words(load_stop_words_file,save_stop_words_file):
 # build graph function
 def build_graph(words_dict,chars_dict,save_dataset_file,save_graph_file,
             save_stopwords_file=None,window_size=3,weighted_graph=True):
-    x_adj = []
-    doc_len_list = []
-
     with open(save_dataset_file,mode="rb") as rfp:
         raw_dataset = pickle.load(rfp)
     if save_stopwords_file is not None:
@@ -96,13 +95,38 @@ def build_graph(words_dict,chars_dict,save_dataset_file,save_graph_file,
     else:
         stop_words_flag = False
     all_dataset = raw_dataset['content']
+    
+    doc_words_features = []
+    doc_chars_features = []
+    doc_mask_list = []
+    doc_len_list = []
+    doc_adj = []
+    words_len_list = [len(item) for item in all_dataset]
+    average_words_len = np.mean(words_len_list)
+    chars_len_list = [len("".join(item)) for item in all_dataset]
+    average_chars_len = np.mean(chars_len_list)
+    seq_words_len = math.ceil(average_words_len)
+    seq_chars_len = math.ceil(average_chars_len)
+    max_words_len = max(words_len_list)
+    max_chars_len = max(chars_len_list)
+
     dataset_len = len(all_dataset)
-    x_words_features = []
-    x_chars_features = []
-    x_masks = []
     for i in tqdm(range(dataset_len),desc="building graph"):
         doc_words = all_dataset[i]
-        
+        doc_chars = list("".join(doc_words))
+        if len(doc_words)>seq_words_len:
+            real_words_len = seq_words_len
+            doc_words = doc_words[:seq_words_len]
+        else:
+            pad_len = seq_words_len - len(doc_words)# padding for each epoch
+            real_words_len = len(doc_words)
+            doc_words += ['<PAD>']*pad_len
+        if len(doc_chars)>seq_chars_len:
+            doc_chars = doc_chars[:seq_chars_len]
+        else:
+            pad_len = seq_chars_len - len(doc_chars)
+            doc_chars += ['<PAD>']*pad_len
+        ################################################################
         doc_len = len(doc_words)
         doc_len_list.append(doc_len)
         doc_word2id_map = {}
@@ -162,25 +186,29 @@ def build_graph(words_dict,chars_dict,save_dataset_file,save_graph_file,
             col.append(q)
             weight.append(word_pair_count[key] if weighted_graph else 1.)
         adj = ssp.csr_matrix((weight, (row, col)), shape=(doc_len,doc_len))
-    
+        #################################################################################
+        mask = []
         for word in doc_words:
             words_features.append(words_dict[word])
-        for char in "".join(doc_words):
+        mask = [0 if word in stop_words_dict or word in words_dict.label_token else 1 for word in doc_words]
+        mask = np.array(mask,dtype=np.int64)
+        for char in doc_chars:
             chars_features.append(chars_dict[char])
-        x_adj.append(adj)
-        x_words_features.append(words_features)
-        x_chars_features.append(chars_features)
-    words_len = [len(item) for item in x_words_features]
-    chars_len = [len(item) for item in x_chars_features]
+        doc_words_features.append(np.array(words_features,dtype=np.int64))
+        doc_chars_features.append(np.array(chars_features,dtype=np.int64))
+        doc_adj.append(adj)
+        doc_mask_list.append(mask)
+    words_len = [len(item) for item in doc_words_features]
+    chars_len = [len(item) for item in doc_chars_features]
     average_words_len = np.mean(words_len)
     average_chars_len = np.mean(chars_len)
     max_words_len = max(words_len)
     max_chars_len = max(chars_len)
     graph_data = {
-        "x_adj":x_adj,
-        "x_words_features":x_words_features,
-        "x_chars_features":x_chars_features,
-        "x_masks":x_masks,
+        "doc_adj":doc_adj,
+        "doc_words_features":np.vstack(doc_words_features),
+        "doc_chars_features":np.vstack(doc_chars_features),
+        "doc_masks":np.vstack(doc_mask_list),
         "labels":raw_dataset["labels"],
         "average_words_len":average_words_len,
         "average_chars_len":average_chars_len,
@@ -189,8 +217,4 @@ def build_graph(words_dict,chars_dict,save_dataset_file,save_graph_file,
     }
     with open(save_graph_file,mode="wb") as wfp:
         pickle.dump(graph_data,wfp)
-
-
-
-
 

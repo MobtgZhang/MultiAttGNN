@@ -4,7 +4,6 @@ import os
 import numpy as np
 import tensorflow as tf
 
-from src.adjacency import preprocess_add_apdding
 from config import get_tf_args
 
 def main():
@@ -30,15 +29,20 @@ def main():
     with open(load_validate_graph_file,mode="rb") as rfp:
         validate_graph_data = pickle.load(rfp)
 
-    # Some preprocessing
-    print('loading training set')
-    preprocess_add_apdding(train_graph_data)
-    print(train_graph_data.keys())
-    exit()
-    train_feature = preprocess_features(train_feature)
-    print('loading validation set')
-    val_adj, val_mask = preprocess_adj(val_adj)
-    val_feature = preprocess_features(val_feature)
+    if FLAGS.model == 'gnn':
+        # support = [preprocess_adj(adj)]
+        # num_supports = 1
+        model_func = GNN
+    elif FLAGS.model == 'gcn_cheby': # not used
+        # support = chebyshev_polynomials(adj, FLAGS.max_degree)
+        num_supports = 1 + FLAGS.max_degree
+        model_func = GNN
+    elif FLAGS.model == 'dense': # not used
+        # support = [preprocess_adj(adj)]
+        num_supports = 1
+        model_func = MLP
+    else:
+        raise ValueError('Invalid argument for model: ' + str(FLAGS.model))
 
 if __name__ == "__main__":
     main()
