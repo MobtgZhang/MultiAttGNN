@@ -1,6 +1,8 @@
 import os
 import tensorflow as tf
 
+from .functional import get_layer_uid
+
 class Model(object):
     def __init__(self,**kwargs):
         allowed_kwargs = {'name','logging'}
@@ -57,15 +59,41 @@ class Model(object):
 
     def _accuracy(self):
         raise NotImplementedError
-    def save(self,save_path,sess=None):
+    def save(self,save_file_name,sess=None):
         if not sess:
             raise AttributeError("TensorFlow session not provided!")
         saver = tf.compat.v1.train.Saver(self.vars)
-        save_filename = os.path.join(save_path,"%s.ckpt"%self.name)
+        save_filename = os.path.join(save_file_name,"%s.ckpt"%self.name)
         saver.save(save_filename)
-
-    def load(self,load_path,sess=None):
+    def load(self,load_file_name,sess=None):
         saver = tf.compat.v1.train.Saver(self.vars)
-        save_filename = os.path.join(load_path,"%s.ckpt"%self.name)
+        save_filename = os.path.join(load_file_name,"%s.ckpt"%self.name)
         saver.restore(sess,save_filename)
-        
+    
+class Layer(object):
+    def __init__(self,**kwargs):
+        allowed_kwargs = {'name','logging'}
+        for arg in kwargs.keys():
+            assert arg in allowed_kwargs,'Invalid keyword argument: ' + arg
+        name = kwargs.get('name')
+        if not name:
+            layer = self.__class__.__name__.lower()
+            name = layer + '_' + str(get_layer_uid(layer))
+        self.name = name
+        self.vars = {}
+        logging = kwargs.get('logging',False)
+        self.logging = logging
+        self.sparse_inputs = False
+    def _call(self,inputs):
+        return inputs
+    def __call__(self,inputs):
+        with tf.name_scope(self.name):
+            if self.logging and not self.sparse_inputs:
+                tf.compat.v1.summary.histogram(self.name+'/inputs',inputs)
+            outputs = self._call(inputs)
+            if self.logging:
+                tf.compat.v1.summary.histogram(self.name+'/outputs',outputs)
+            return outputs
+    def _log_vars(self):
+        for var in self.vars:
+            tf.compat.v1.summary.histogram(self.name+'/vars/' + var,self.vars[var])

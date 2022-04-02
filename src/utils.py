@@ -351,7 +351,7 @@ def build_graph(words_dict,chars_dict,save_dataset_file,save_graph_file,window_s
         mask = []
         for word in doc_words:
             words_features.append(words_dict[word])
-        mask = [0 if word in words_dict.ind2token else 1 for word in doc_words]
+        mask = [0 if word in words_dict.ind2token or word in words_dict.stopwords else 1 for word in doc_words]
         mask = np.array(mask,dtype=np.int64)
         for char in doc_chars:
             chars_features.append(chars_dict[char])
