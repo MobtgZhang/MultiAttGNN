@@ -13,10 +13,6 @@ def main():
     load_chars_dict_file = os.path.join(result_data_dir,"chars_dict.pkl")     
     load_words_dict_file = os.path.join(result_data_dir,"words_dict.pkl") 
     load_embeddings_file = os.path.join(result_data_dir,"embedding.pkl")
-    with open(load_chars_dict_file,mode="rb") as rfp:
-        chars_dict = pickle.load(rfp)
-    with open(load_words_dict_file,mode="rb") as rfp:
-        words_dict = pickle.load(rfp)
     with open(load_embeddings_file,mode="rb") as rfp:
         embedding_data = pickle.load(rfp)
         char_embeddings = embedding_data["char-embeddings"]
@@ -25,10 +21,10 @@ def main():
     load_validate_graph_file = os.path.join(result_data_dir,"validate_graph.pkl")
     with open(load_graph_file,mode="rb") as rfp:
         train_graph_data = pickle.load(rfp)
-        
     with open(load_validate_graph_file,mode="rb") as rfp:
         validate_graph_data = pickle.load(rfp)
-
+    
+    
     if FLAGS.model == 'gnn':
         # support = [preprocess_adj(adj)]
         # num_supports = 1

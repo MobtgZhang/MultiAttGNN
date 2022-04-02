@@ -6,7 +6,7 @@ def get_tf_args():
     FLAGS = tf.app.flags.FLAGS 
     flags.DEFINE_string('result_dir','./result','Dataset string')
     flags.DEFINE_string('data_dir','./data','Dataset string')
-    flags.DEFINE_string('dataset','AIChallenger','Dataset string')
+    flags.DEFINE_string('dataset','CLUE2020Emotions','Dataset string')
     flags.DEFINE_integer('seed',1234,'Model training seed')
     flags.DEFINE_integer('seq_len',384,'The length of the content.')
     # Set random seed

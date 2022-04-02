@@ -1,12 +1,12 @@
 ### The main method
-+ TextCNN
-+ TextRNN
++ CNN
++ RNN
 + RCNN
 + DPCNN
++ BiLSTM+Attention
++ HAN Model
 + Capsule Networks
 + GraphING
-+ BERT
-+ XLNET
 + Our method
 
 ### Dataset reference
