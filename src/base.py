@@ -97,3 +97,4 @@ class Layer(object):
     def _log_vars(self):
         for var in self.vars:
             tf.compat.v1.summary.histogram(self.name+'/vars/' + var,self.vars[var])
+

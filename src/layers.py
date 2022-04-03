@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 
 from .base import Layer
@@ -5,7 +6,7 @@ from .inits import glorot,zeros,init_vars
 from .functional import sparse_dropout,dot
 from .functional import gru_unit
 class Embedding(Layer):
-    def __init__(self,vocab_nums,embedding_dim,placeholders,embedding=None,dropout=False,sparse_inputs=False,
+    def __init__(self,placeholders,vocab_nums,embedding_dim,embedding=None,dropout=False,sparse_inputs=False,
                     featureless=False,**kwargs):
         super(Embedding,self).__init__(**kwargs)
         if dropout:
@@ -19,7 +20,10 @@ class Embedding(Layer):
         
         with tf.compat.v1.varibale_scope(self.name+'_vars'):
             if embedding is None:
-                self.vars['embedding'] = glorot([vocab_nums,embedding_dim],name='embedding')
+                if vocab_nums is not None and embedding_dim is not None:
+                    self.vars['embedding'] = glorot([vocab_nums,embedding_dim],name='embedding')
+                else:
+                    self.vars['embedding'] = None
             else:
                 self.vars['embedding'] = init_vars(embedding,"embedding")
     def _call(self,inputs):
@@ -29,6 +33,15 @@ class Embedding(Layer):
         else:
             x_embed = tf.nn.dropout(x_embed,rate=self.dropout)
         return x_embed
+    def load_pretrain(self,embedding):
+        if type(embedding) == np.ndarray:
+            pass
+        elif type(embedding) == list:
+            embedding = np.array(embedding)
+        else:
+            raise ValueError("Unknown type %s"%str(type(embedding)))
+        with tf.compat.v1.varibale_scope(self.name+'_vars'):
+            self.vars['embedding'] = init_vars(embedding,name='embedding')                    
 class Linear(Layer):
     def __init__(self,in_dim,out_dim,placeholders,dropout=False,sparse_inputs=False,
                 act=tf.nn.relu,bias=False,featureless=False,**kwargs):

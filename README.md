@@ -24,5 +24,5 @@
 ### Embedding training reference
 + [GLOVE Embedding]()
 + [Tencent Embedding]()
-+ []()
++ [](https://github.com/singletongue/WikiEntVec)
 

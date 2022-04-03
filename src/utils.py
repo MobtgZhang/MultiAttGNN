@@ -12,7 +12,7 @@ import scipy.sparse as ssp
 import pandas as pd
 import sklearn
 
-from .data import Dictionary
+from .dictionary import Dictionary
 
 def build_aichallenger_dataset(dataset_dir,reusult_dir):
     load_train_file = os.path.join(dataset_dir,"sentiment_analysis_trainingset.csv")
@@ -379,3 +379,15 @@ def build_graph(words_dict,chars_dict,save_dataset_file,save_graph_file,window_s
     with open(save_graph_file,mode="wb") as wfp:
         pickle.dump(graph_data,wfp)
 
+def construct_feed_dict(words_token,chars_token,words_mask,chars_mask,
+                    support,labels,placeholders):
+    """Construct feed dictionary."""
+    feed_dict = dict()
+    feed_dict.update({placeholders['labels']: labels})
+    feed_dict.update({placeholders['words_token']: words_token})
+    feed_dict.update({placeholders['chars_token']: chars_token})
+    feed_dict.update({placeholders['words_mask']: words_mask})
+    feed_dict.update({placeholders['chars_mask']: chars_mask})
+    feed_dict.update({placeholders['support']: support})
+    feed_dict.update({placeholders['num_features_nonzero']: features[1].shape})
+    return feed_dict

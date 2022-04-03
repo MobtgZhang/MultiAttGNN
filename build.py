@@ -5,7 +5,7 @@ import pickle
 from src.utils import build_stop_words
 from src.utils import build_dictionary,build_embeddings
 from src.utils import build_graph
-from src.data import Dictionary
+from src.dictionary import Dictionary
 from src.utils import build_wrime_dataset
 from src.utils import build_aichallenger_dataset,build_weibo4moods,build_clue2020emotions_dataset
 from src.utils import build_goemotions_dataset,build_SST5_dataset
