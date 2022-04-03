@@ -7,12 +7,10 @@ import traceback
 import collections
 import numpy as np
 
-from .sampler import RandomSampler,SequentialSampler
-
+from .sampler import RandomSampler,SequentialSampler 
 
 class ExceptionWrapper(object):
     "Wraps an exception plus traceback to communicate across threads"
-
     def __init__(self, exc_info):
         self.exc_type = exc_info[0]
         self.exc_msg = "".join(traceback.format_exception(*exc_info))
@@ -152,9 +150,6 @@ class DataLoaderIter(object):
                 self.reorder_dict[idx] = batch
                 continue
             return self._process_next_batch(batch)
-
-    next = __next__  # Python 2 compatibility
-
     def __iter__(self):
         return self
 

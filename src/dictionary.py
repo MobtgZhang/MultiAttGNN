@@ -89,18 +89,3 @@ class Dictionary:
     def __str__(self) -> str:
         return '{}(num_keys={})'.format(
             self.__class__.__name__,len(self.token2ind))            
-class Dataset:
-    def __init__(self,x_features,x_adj,y_labels):
-        pass
-    def __getitem__(self,idx):
-        raise NotImplementedError
-    def __len__(self):
-        raise NotImplementedError
-class DataLoader:
-    def __init__(self,dataset,batch_size=1,shuffle=False,sampler=None, batch_sampler=None,
-                 num_workers=0, collate_fn=default_collate,):
-        pass
-    def __next__(self):
-        pass
-    def __iter__(self):
-        pass

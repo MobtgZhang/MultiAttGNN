@@ -10,5 +10,18 @@ class Dataset(object):
 
     def __len__(self):
         raise NotImplementedError
+class RegularDataset(Dataset):
+    def __init__(self,graph_data,words_dict,chars_dict):
+        super(RegularDataset,self).__init__()
+        self.graph_data = graph_data
+        self.words_dict = words_dict
+        self.chars_dict = chars_dict
+    def __getitem__(self, index):
+        graph_item = self.graph_data[index]
+        graph_item["words"] = [self.words_dict[w] for w in graph_item["words"]]
+        graph_item["chars"] = [self.chars_dict[w] for w in graph_item["chars"]]
+        return graph_item
+    def __len__(self):
+        return len(self.graph_data)
 
-    
+

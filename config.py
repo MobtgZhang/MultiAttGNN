@@ -19,7 +19,7 @@ def get_tf_args():
     flags.DEFINE_integer('epochs', 200, 'Number of epochs to train.')
     flags.DEFINE_integer('batch_size', 4096, 'Size of batches per epoch.') 
     flags.DEFINE_integer('in_dim', 100, 'Dimension of input.') 
-    flags.DEFINE_integer('embedding_dim', 300, 'Dimension of embedding layer.')
+    flags.DEFINE_integer('embedding_dim', 200, 'Dimension of embedding layer.')
     flags.DEFINE_integer('hidden', 96, 'Number of units in hidden layer.') # 32, 64, 96, 128
     flags.DEFINE_integer('steps', 2, 'Number of graph layers.')
     flags.DEFINE_float('dropout', 0.5, 'Dropout rate (1 - keep probability).')

@@ -14,7 +14,7 @@ import sklearn
 
 from .dictionary import Dictionary
 
-def build_aichallenger_dataset(dataset_dir,reusult_dir):
+def build_aichallenger_dataset(dataset_dir,reusult_dir,save_stop_words_file):
     load_train_file = os.path.join(dataset_dir,"sentiment_analysis_trainingset.csv")
     load_validate_file = os.path.join(dataset_dir,"sentiment_analysis_validationset.csv")
     train_dataset = pd.read_csv(load_train_file)
@@ -23,24 +23,36 @@ def build_aichallenger_dataset(dataset_dir,reusult_dir):
     val_len = len(dataset)//2
     val_dataset = dataset.iloc[:val_len,:]
     test_dataset = dataset.iloc[val_len:,:]
+    with open(save_stop_words_file,mode="rb") as rfp:
+        stopword_dict = pickle.load(rfp)
+        def tp_fun(sent):
+            mask = []
+            for word in sent:
+                if word in stopword_dict:
+                    mask += [0]*len(word)
+                else:
+                    mask += [1]*len(word) 
+            return mask
     names_list = ['train','validate','test']
     dataset_list = [train_dataset,val_dataset,test_dataset]
     for name,tp_dataset in tqdm(zip(names_list,dataset_list),desc='processing aichallenger dataset'):
         save_dataset_file = os.path.join(reusult_dir,"%s_dataset.pkl"%name)
         if os.path.exists(save_dataset_file):
             continue
-        all_data = list(map(list,list(tp_dataset['content'].map(jieba.cut))))
+        content = list(map(list,list(tp_dataset['content'].map(jieba.cut))))
+        masks = list(map(lambda sent:tp_fun(sent),content))
         labels = tp_dataset.drop(labels='id',axis=1).drop(labels='content',axis=1).to_numpy()
         idx = tp_dataset['id'].to_numpy()
         labels = labels+2
         all_process_data = {
             "idx":idx,
-            "content":all_data,
-            "labels":labels
+            "content":content,
+            "labels":labels,
+            "masks":masks
         }
         with open(save_dataset_file,mode="wb") as wfp:
             pickle.dump(all_process_data,wfp)
-def build_wrime_dataset(load_dataset_file,result_data_dir,label_name='writer',wrime_name="v1"):
+def build_wrime_dataset(load_dataset_file,result_data_dir,save_stop_words_file,label_name='writer'):
     dataset = pd.read_csv(load_dataset_file,sep='\t')
     columns_list = []
     for label in dataset.columns.values:
@@ -49,22 +61,34 @@ def build_wrime_dataset(load_dataset_file,result_data_dir,label_name='writer',wr
     train_dataset = dataset[dataset['Train/Dev/Test']=='train']
     dev_dataset = dataset[dataset['Train/Dev/Test']=='dev']
     test_dataset = dataset[dataset['Train/Dev/Test']=='test']
+    with open(save_stop_words_file,mode="rb") as rfp:
+        stopword_dict = pickle.load(rfp)
+        def tp_fun(sent):
+            mask = []
+            for word in sent:
+                if word in stopword_dict:
+                    mask += [0]*len(word)
+                else:
+                    mask += [1]*len(word) 
+            return mask
     names_list = ['train','validate','test']
     dataset_list = [train_dataset,dev_dataset,test_dataset]
     for name,tp_dataset in tqdm(zip(names_list,dataset_list),desc="processing WRIME-v2 dataset"):
         token_tp = Tokenizer()
         content = list(tp_dataset["Sentence"].map(lambda x:[item.surface for item in token_tp.tokenize(x)]))
+        masks = list(map(lambda sent:tp_fun(sent),content))
         index = tp_dataset.index.to_numpy()
         labels = tp_dataset[columns_list].to_numpy()
         all_data = {
             "idx":index,
             "content":content,
-            "labels":labels
+            "labels":labels,
+            "masks":masks
         }
         save_file_name = os.path.join(result_data_dir,'%s_dataset.pkl'%name)
         with open(save_file_name,mode='wb') as wfp:
             pickle.dump(all_data,wfp)
-def build_weibo4moods(load_data_file,result_data_dir):
+def build_weibo4moods(load_data_file,result_data_dir,save_stop_words_file):
     train_per = 0.64
     val_per = 0.82
     dataset = pd.read_csv(load_data_file)
@@ -74,21 +98,33 @@ def build_weibo4moods(load_data_file,result_data_dir):
     train_dataset = dataset.iloc[:train_len,:]
     validate_dataset = dataset.iloc[train_len:val_len,:]
     test_dataset = dataset.iloc[val_len:,:]
+    with open(save_stop_words_file,mode="rb") as rfp:
+        stopword_dict = pickle.load(rfp)
+        def tp_fun(sent):
+            mask = []
+            for word in sent:
+                if word in stopword_dict:
+                    mask += [0]*len(word)
+                else:
+                    mask += [1]*len(word) 
+            return mask
     names_list = ['train','validate','test']
     dataset_list = [train_dataset,validate_dataset,test_dataset]
     for name,tp_dataset in tqdm(zip(names_list,dataset_list),desc='processing weibo4moods dataset'):
         save_file_name = os.path.join(result_data_dir,'%s_dataset.pkl'%name)
         content = list(map(list,list(tp_dataset['review'].map(jieba.cut))))
+        masks = list(map(lambda sent:tp_fun(sent),content))
         index = tp_dataset.index.to_numpy()
         labels = tp_dataset['label'].to_numpy()
         all_data = {
             "idx":index,
             "content":content,
-            "labels":labels
+            "labels":labels,
+            "masks":masks
         }
         with open(save_file_name,mode='wb') as wfp:
             pickle.dump(all_data,wfp)
-def build_student(load_data_file,result_data_dir):
+def build_student(load_data_file,result_data_dir,save_stop_words_file):
     train_per = 0.64
     val_per = 0.82
     dataset = pd.read_excel(load_data_file)
@@ -98,23 +134,51 @@ def build_student(load_data_file,result_data_dir):
     train_dataset = dataset.iloc[:train_len,:]
     validate_dataset = dataset.iloc[train_len:val_len,:]
     test_dataset = dataset.iloc[val_len:,:]
+    with open(save_stop_words_file,mode="rb") as rfp:
+        stopword_dict = pickle.load(rfp)
+        def tp_fun(sent):
+            mask = []
+            for word in sent:
+                if word in stopword_dict:
+                    mask += [0]*len(word)
+                else:
+                    mask += [1]*len(word) 
+            return mask
     names_list = ['train','validate','test']
     dataset_list = [train_dataset,validate_dataset,test_dataset]
     for name,tp_dataset in tqdm(zip(names_list,dataset_list),desc='processing student dataset'):
         save_file_name = os.path.join(result_data_dir,'%s_dataset.pkl'%name)
         content = list(map(list,list(tp_dataset['content'].map(jieba.cut))))
+        masks = list(map(lambda sent:tp_fun(sent),content))
         index = tp_dataset['总序号'].to_numpy()
         labels = tp_dataset['态度标签'].to_numpy()-1
         all_data = {
             "idx":index,
             "content":content,
-            "labels":labels
+            "labels":labels,
+            "masks":masks
         }
         with open(save_file_name,mode='wb') as wfp:
             pickle.dump(all_data,wfp)
         
-def build_clue2020emotions_dataset(dataset_dir,result_data_dir):
+def build_clue2020emotions_dataset(dataset_dir,result_data_dir,save_stop_words_file):
     names_list = ['train','validate','test']
+    with open(save_stop_words_file,mode="rb") as rfp:
+        stopword_dict = pickle.load(rfp)
+        def tp_fun(sent):
+            mask = []
+            for word in sent:
+                if word in stopword_dict:
+                    mask += [0]*len(word)
+                else:
+                    mask += [1]*len(word) 
+            return mask
+    label_list = ['like', 'fear', 'disgust', 'anger', 'surprise', 'sadness', 'happiness']
+    label_dict = {label_list[idx]:idx for idx in range(len(label_list))}
+    all_dict = {
+        "idx2label":label_list,
+        "label2idx":label_dict
+    }
     for name in tqdm(names_list,desc='processing student dataset'):
         load_filename = os.path.join(dataset_dir,"%s.txt"%name)
         save_file_name = os.path.join(result_data_dir,"%s_dataset.pkl"%name)
@@ -125,16 +189,22 @@ def build_clue2020emotions_dataset(dataset_dir,result_data_dir):
                 dataset.append(data_dict)
             dataset = pd.DataFrame(dataset)
             content = list(map(list,list(dataset['content'].map(jieba.cut))))
+            masks = list(map(lambda sent:tp_fun(sent),content))
             index = dataset['id'].to_numpy()
-            labels = dataset['label']
+            labels = dataset['label'].map(lambda x:label_dict[x]).to_numpy()[:,np.newaxis]
+            label_dict.update(data_dict)
             all_data = {
                 "idx":index,
                 "content":content,
-                "labels":labels
+                "labels":labels,
+                "masks":masks
             }
             with open(save_file_name,mode='wb') as wfp:
                 pickle.dump(all_data,wfp)
-def build_goemotions_dataset(dataset_dir,result_data_dir):
+    save_labels_file = os.path.join(result_data_dir,"labels.pkl")
+    with open(save_labels_file,mode='wb') as wfp:
+        pickle.dump(all_dict,wfp)
+def build_goemotions_dataset(dataset_dir,result_data_dir,save_stop_words_file):
     train_per = 0.64
     val_per = 0.82
     columns_list = ['admiration',
@@ -152,24 +222,46 @@ def build_goemotions_dataset(dataset_dir,result_data_dir):
     train_dataset = all_dataset.iloc[:train_len,:]
     validate_dataset = all_dataset.iloc[train_len:val_len,:]
     test_dataset = all_dataset.iloc[val_len:,:]
+    with open(save_stop_words_file,mode="rb") as rfp:
+        stopword_dict = pickle.load(rfp)
+        def tp_fun(sent):
+            mask = []
+            for word in sent:
+                if word in stopword_dict:
+                    mask += [0]*len(word)
+                else:
+                    mask += [1]*len(word) 
+            return mask
     names_list = ['train','validate','test']
     dataset_list = [train_dataset,validate_dataset,test_dataset]
     for name,tp_dataset in tqdm(zip(names_list,dataset_list),desc='processing student dataset'):
         save_file_name = os.path.join(result_data_dir,'%s_dataset.pkl'%name)
         content = list(map(list,list(tp_dataset['text'].map(lambda x:x.split(' ')))))
-        index = tp_dataset['id']
-        labels = tp_dataset[columns_list]
+        masks = list(map(lambda sent:tp_fun(sent),content))
+        index = tp_dataset['id'].to_numpy()
+        labels = tp_dataset[columns_list].to_numpy()
         all_data = {
             "idx":index,
             "content":content,
-            "labels":labels
+            "labels":labels,
+            "masks":masks
         }
         with open(save_file_name,mode='wb') as wfp:
             pickle.dump(all_data,wfp)
-def build_SST5_dataset(dataset_dir,result_data_dir):
+def build_SST5_dataset(dataset_dir,result_data_dir,save_stop_words_file):
     load_train_file = os.path.join(dataset_dir,"train.txt")
     load_valid_file = os.path.join(dataset_dir,"dev.txt")
     load_test_file = os.path.join(dataset_dir,"test.txt")
+    with open(save_stop_words_file,mode="rb") as rfp:
+        stopword_dict = pickle.load(rfp)
+        def tp_fun(sent):
+            mask = []
+            for word in sent:
+                if word in stopword_dict:
+                    mask += [0]*len(word)
+                else:
+                    mask += [1]*len(word) 
+            return mask
     columns = ["label","sentence"]
     train_dataset = pd.read_csv(load_train_file,sep='\t',header=None)
     train_dataset.columns = columns
@@ -182,12 +274,14 @@ def build_SST5_dataset(dataset_dir,result_data_dir):
     for name,tp_dataset in tqdm(zip(names_list,dataset_list),desc='processing student dataset'):
         save_file_name = os.path.join(result_data_dir,'%s_dataset.pkl'%name)
         content = list(map(list,list(tp_dataset['sentence'].map(lambda x:x.split()))))
+        masks = list(map(lambda sent:tp_fun(sent),content))
         index = tp_dataset.index.to_numpy()
         labels = tp_dataset["label"].to_numpy()
         all_data = {
             "idx":index,
             "content":content,
-            "labels":labels
+            "labels":labels,
+            "masks":masks
         }
         with open(save_file_name,mode='wb') as wfp:
             pickle.dump(all_data,wfp)
@@ -261,44 +355,23 @@ def build_graph(words_dict,chars_dict,save_dataset_file,save_graph_file,window_s
     with open(save_dataset_file,mode="rb") as rfp:
         raw_dataset = pickle.load(rfp)
     all_dataset = raw_dataset['content']
-    
-    doc_words_features = []
-    doc_chars_features = []
-    doc_mask_list = []
-    doc_len_list = []
-    doc_adj = []
-    words_len_list = [len(item) for item in all_dataset]
-    average_words_len = np.mean(words_len_list)
-    chars_len_list = [len("".join(item)) for item in all_dataset]
-    average_chars_len = np.mean(chars_len_list)
-    seq_words_len = math.ceil(average_words_len)
-    seq_chars_len = math.ceil(average_chars_len)
-    max_words_len = max(words_len_list)
-    max_chars_len = max(chars_len_list)
-
+    graph_data = []
     dataset_len = len(all_dataset)
-    for i in tqdm(range(dataset_len),desc="building graph"):
-        doc_words = all_dataset[i]
+    doc_len_list = []
+    for idx in tqdm(range(dataset_len),desc="building graph"):
+        doc_words = all_dataset[idx]
         doc_chars = list("".join(doc_words))
-        if len(doc_words)>seq_words_len:
-            doc_words = doc_words[:seq_words_len]
-        else:
-            pad_len = seq_words_len - len(doc_words)# padding for each epoch
-            doc_words += [words_dict.pad]*pad_len
-        if len(doc_chars)>seq_chars_len:
-            doc_chars = doc_chars[:seq_chars_len]
-        else:
-            pad_len = seq_chars_len - len(doc_chars)
-            doc_chars += [words_dict.pad]*pad_len
-        doc_words = [words_dict.start] + doc_words + [words_dict.end]
-        doc_chars = [words_dict.start] + doc_chars + [words_dict.end]
+        doc_nodes = list(set(doc_words))
+
+        # doc_words = [words_dict.start] + doc_words + [words_dict.end]
+        # doc_chars = [words_dict.start] + doc_chars + [words_dict.end]
         ################################################################
-        doc_len = len(doc_words)
+        doc_len = len(doc_nodes)
         doc_len_list.append(doc_len)
+
         doc_word2id_map = {}
-        doc_id2word = list(set(doc_words))
-        for j in range(len(doc_id2word)):
-            doc_word2id_map[doc_id2word[j]] = j
+        for j in range(len(doc_nodes)):
+            doc_word2id_map[doc_nodes[j]] = j
         # sliding windows
         windows = []
         if doc_len <= window_size:
@@ -310,7 +383,7 @@ def build_graph(words_dict,chars_dict,save_dataset_file,save_graph_file,window_s
 
         word_pair_count = {}
         for win in windows:
-            for p in range(1, len(window)):
+            for p in range(1, len(win)):
                 for q in range(0, p):
                     word_p = win[p]
                     word_p_id = doc_word2id_map[word_p]
@@ -337,8 +410,6 @@ def build_graph(words_dict,chars_dict,save_dataset_file,save_graph_file,window_s
         row = []
         col = []
         weight = []
-        words_features = []
-        chars_features = []
 
         for key in word_pair_count:
             p = key[0]
@@ -348,46 +419,67 @@ def build_graph(words_dict,chars_dict,save_dataset_file,save_graph_file,window_s
             weight.append(word_pair_count[key] if weighted_graph else 1.)
         adj = ssp.csr_matrix((weight, (row, col)), shape=(doc_len,doc_len))
         #################################################################################
-        mask = []
-        for word in doc_words:
-            words_features.append(words_dict[word])
-        mask = [0 if word in words_dict.ind2token or word in words_dict.stopwords else 1 for word in doc_words]
-        mask = np.array(mask,dtype=np.int64)
-        for char in doc_chars:
-            chars_features.append(chars_dict[char])
-        doc_words_features.append(np.array(words_features,dtype=np.int64))
-        doc_chars_features.append(np.array(chars_features,dtype=np.int64))
-        doc_adj.append(adj)
-        doc_mask_list.append(mask)
-    words_len = [len(item) for item in doc_words_features]
-    chars_len = [len(item) for item in doc_chars_features]
-    average_words_len = np.mean(words_len)
-    average_chars_len = np.mean(chars_len)
-    max_words_len = max(words_len)
-    max_chars_len = max(chars_len)
-    graph_data = {
-        "doc_adj":doc_adj,
-        "doc_words_features":np.vstack(doc_words_features),
-        "doc_chars_features":np.vstack(doc_chars_features),
-        "doc_masks":np.vstack(doc_mask_list),
-        "labels":raw_dataset["labels"],
-        "average_words_len":average_words_len,
-        "average_chars_len":average_chars_len,
-        "max_words_len":max_words_len,
-        "max_chars_len":max_chars_len,
-    }
+        if len(doc_chars)!=len(raw_dataset["masks"][idx]):
+            print(idx)
+        tp_dict = {
+            "idx":raw_dataset["idx"][idx],
+            "adj":adj,
+            "words":doc_nodes,
+            "chars":doc_chars,
+            "chars-mask":raw_dataset["masks"][idx],
+            "labels":raw_dataset["labels"][idx],
+        }
+        graph_data.append(tp_dict)
     with open(save_graph_file,mode="wb") as wfp:
         pickle.dump(graph_data,wfp)
 
-def construct_feed_dict(words_token,chars_token,words_mask,chars_mask,
-                    support,labels,placeholders):
-    """Construct feed dictionary."""
+def construct_feed_dict(item,placeholders):
+    """
+        Construct feed dictionary.
+        item: idx,(adj,adj_words,adj_mask),(chars,chars_mask),labels
+    """
     feed_dict = dict()
-    feed_dict.update({placeholders['labels']: labels})
-    feed_dict.update({placeholders['words_token']: words_token})
-    feed_dict.update({placeholders['chars_token']: chars_token})
-    feed_dict.update({placeholders['words_mask']: words_mask})
-    feed_dict.update({placeholders['chars_mask']: chars_mask})
-    feed_dict.update({placeholders['support']: support})
-    feed_dict.update({placeholders['num_features_nonzero']: features[1].shape})
+    feed_dict.update({placeholders['adj']: item[1][0]})
+    feed_dict.update({placeholders['adj-words']: item[1][1]})
+    feed_dict.update({placeholders['adj-mask']: item[1][2]})
+    feed_dict.update({placeholders['chars']: item[2][0]})
+    feed_dict.update({placeholders['chars-mask']: item[2][1]})
+    feed_dict.update({placeholders['labels']:item[3]})
     return feed_dict
+def normalize_adj(adj):
+    """Symmetrically normalize adjacency matrix."""
+    rowsum = np.array(adj.sum(1))
+    with np.errstate(divide='ignore'):
+        d_inv_sqrt = np.power(rowsum, -0.5).flatten()
+    d_inv_sqrt[np.isinf(d_inv_sqrt)] = 0.
+    d_mat_inv_sqrt = np.diag(d_inv_sqrt)
+    return adj.dot(d_mat_inv_sqrt).transpose().dot(d_mat_inv_sqrt)
+def batchfy(batch):
+    batch_size = len(batch)
+    idx = [ex["idx"] for ex in batch]
+    adj = [ex["adj"] for ex in batch]
+    adj_words = [ex["words"] for ex in batch]
+    max_words_len = max([len(ex["words"]) for ex in batch])
+    max_chars_len = max([len(ex["chars"]) for ex in batch])
+    # initialize the tensor
+    adj_tokens = np.zeros((batch_size,max_words_len),dtype=np.int64)
+    adj_mask = np.zeros((batch_size,max_words_len),dtype=np.int64)
+    chars = np.zeros((batch_size,max_chars_len),dtype=np.int64)
+    chars_mask = np.zeros((batch_size,max_chars_len),dtype=np.int64)
+    labels = np.array([ex["labels"] for ex in batch],dtype=np.int64)
+    # add value
+    for i in range(batch_size):
+        adj_normalized = normalize_adj(adj[i]) # no self-loop
+        chars_len = len(batch[i]["chars"])
+        words_len = len(batch[i]["words"])
+        pad = max_words_len - words_len # padding for each epoch
+        adj_normalized = np.pad(adj_normalized, ((0,pad),(0,pad)), mode='constant')
+        adj[i] = adj_normalized
+        adj_tokens[i][:words_len] = np.array(batch[i]["words"],dtype=np.int64)
+        adj_mask[i][:words_len] = np.ones((words_len,),dtype=np.int64)
+        chars[i][:chars_len] = np.array(batch[i]["chars"],dtype=np.int64)
+        chars_mask[i][:chars_len] = np.array(batch[i]["chars-mask"],dtype=np.int64)
+    adj = np.array(adj,dtype=np.float64)
+    return idx,(adj,adj_words,adj_mask),(chars,chars_mask),labels
+
+

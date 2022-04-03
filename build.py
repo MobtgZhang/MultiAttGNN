@@ -32,6 +32,14 @@ def check_args(args):
         args.stop_words_file = os.path.join(args.result_dir,"stopwords.pkl")
     else:
         args.stop_words_file = None
+    if args.dataset.lower() in ['aichallenger','clue2020emotions','weibo4moods','student']:
+        args.lang = 'zh'
+    elif args.dataset.lower() in ['goemotions','sst-5']:
+        args.lang = 'en'
+    elif args.dataset.lower() in ['wrime']:
+        args.lang = 'ja'
+    else:
+        raise ValueError('Unknown dataset name %s'%args.datset)
 def check_embeddings(args,lang):
     if lang == 'zh':
         args.embedding_file = "/media/mobtgzhang/Software/Vecs/tencent-ailab-embedding-zh-d100-v0.2.0-s.txt"
@@ -55,64 +63,58 @@ def main():
     exists_flag = os.path.exists(save_train_dataset_file) and \
             os.path.exists(save_validate_dataset_file) and \
                 os.path.exists(save_test_dataset_file)
-    # build the dataset
-    if args.dataset.lower() == 'aichallenger':
-        lang = 'zh'
-        if not exists_flag:
-            build_aichallenger_dataset(dataset_dir,result_data_dir)
-    elif args.dataset.lower() == 'clue2020emotions':
-        lang = 'zh'
-        if not exists_flag:
-            build_clue2020emotions_dataset(dataset_dir,result_data_dir)
-    elif args.dataset.lower() == 'goemotions':
-        lang = 'en'
-        if not exists_flag:
-            build_goemotions_dataset(dataset_dir,result_data_dir)
-    elif args.dataset.lower() == 'sst-5':
-        lang = 'en'
-        if not exists_flag:
-            build_SST5_dataset(dataset_dir,result_data_dir)
-    elif args.dataset.lower() == 'wrime':
-        lang = 'ja'
-        load_dataset_file = os.path.join(dataset_dir,"wrime-%s.tsv"%args.wrime_name)
-        if not exists_flag:
-            build_wrime_dataset(load_dataset_file,result_data_dir,args.wrime_label)
-    elif args.dataset.lower() == 'weibo4moods':
-        lang = 'zh'
-        load_dataset_file = os.path.join(dataset_dir,"simplifyweibo_4_moods.csv")
-        if not exists_flag:
-            build_weibo4moods(load_dataset_file,result_data_dir)
-    elif args.dataset.lower() == 'student':
-        lang = 'zh'
-        load_train_dataset_file = os.path.join(dataset_dir,"student-v1.xlsx")
-        if not exists_flag:
-            build_student(load_train_dataset_file,result_data_dir)
-    else:
-        raise ValueError("Unknown dataset:%s"%str(args.dataset))
-    
-    if lang =='zh':
-        # create stop words
+    # create stop words
+    if args.lang =='zh':
         embedding_head = True
         load_stop_words_file = os.path.join(args.data_dir,"stopwords_zh.json")
         save_stop_words_file = os.path.join(args.result_dir,"stopwords_zh.pkl")
         if args.stop_words and not os.path.exists(save_stop_words_file):
-            build_stop_words(load_stop_words_file,save_stop_words_file,lang)
-    elif lang == 'ja':
+            build_stop_words(load_stop_words_file,save_stop_words_file,args.lang)
+    elif args.lang == 'ja':
         embedding_head = True
-        # create stop words
         load_stop_words_file = os.path.join(args.data_dir,"stopwords_ja.json")
         save_stop_words_file = os.path.join(args.result_dir,"stopwords_ja.pkl")
         if args.stop_words and not os.path.exists(save_stop_words_file):
-            build_stop_words(load_stop_words_file,save_stop_words_file,lang)
-    elif lang == 'en':
+            build_stop_words(load_stop_words_file,save_stop_words_file,args.lang)
+    elif args.lang == 'en':
         embedding_head = False
-        # create stop words
         load_stop_words_file = os.path.join(args.data_dir,"stopwords_en.json")
         save_stop_words_file = os.path.join(args.result_dir,"stopwords_en.pkl")
         if args.stop_words and not os.path.exists(save_stop_words_file):
-            build_stop_words(load_stop_words_file,save_stop_words_file,lang)
+            build_stop_words(load_stop_words_file,save_stop_words_file,args.lang)
     else:
         raise ValueError("Unknown language")
+    print("Saved the file %s ."%(save_stop_words_file))
+    # build the dataset
+    if args.dataset.lower() == 'aichallenger':
+        if not exists_flag:
+            build_aichallenger_dataset(dataset_dir,result_data_dir,save_stop_words_file)
+    elif args.dataset.lower() == 'clue2020emotions':
+        if not exists_flag:
+            build_clue2020emotions_dataset(dataset_dir,result_data_dir,save_stop_words_file)
+    elif args.dataset.lower() == 'goemotions':
+        if not exists_flag:
+            build_goemotions_dataset(dataset_dir,result_data_dir,save_stop_words_file)
+    elif args.dataset.lower() == 'sst-5':
+        if not exists_flag:
+            build_SST5_dataset(dataset_dir,result_data_dir,save_stop_words_file)
+    elif args.dataset.lower() == 'wrime':
+        load_dataset_file = os.path.join(dataset_dir,"wrime-%s.tsv"%args.wrime_name)
+        if not exists_flag:
+            build_wrime_dataset(load_dataset_file,result_data_dir,save_stop_words_file,args.wrime_label)
+    elif args.dataset.lower() == 'weibo4moods':
+        load_dataset_file = os.path.join(dataset_dir,"simplifyweibo_4_moods.csv")
+        if not exists_flag:
+            build_weibo4moods(load_dataset_file,result_data_dir,save_stop_words_file)
+    elif args.dataset.lower() == 'student':
+        load_train_dataset_file = os.path.join(dataset_dir,"student-v1.xlsx")
+        if not exists_flag:
+            build_student(load_train_dataset_file,result_data_dir,save_stop_words_file)
+    else:
+        raise ValueError("Unknown dataset:%s"%str(args.dataset))
+    print("Saved the file %s , %s and %s"%(save_train_dataset_file,save_validate_dataset_file,
+                                            save_test_dataset_file))
+                                            
     # build the dictionary 
     save_chars_dict_file = os.path.join(result_data_dir,"chars_dict.pkl")
     save_words_dict_file = os.path.join(result_data_dir,"words_dict.pkl")
@@ -122,11 +124,13 @@ def main():
             stop_words = pickle.load(rfp)
         build_dictionary(result_data_dir,stop_words)
         del stop_words
+        print("Saved the file %s and %s"%(save_words_dict_file,save_chars_dict_file))
     # build the embedding
     save_embedding_file = os.path.join(result_data_dir,"embedding.pkl")
-    check_embeddings(args,lang)
+    check_embeddings(args,args.lang)
     if not os.path.exists(save_embedding_file):
         build_embeddings(result_data_dir,args.embedding_file,save_embedding_file,embedding_head)
+        print("Saved the file %s"%save_embedding_file)
     # build the graph
     graph_names = ['train','validate','test']
     for name in graph_names:
@@ -136,6 +140,7 @@ def main():
             words_dict = Dictionary.load(save_words_dict_file)
             chars_dict = Dictionary.load(save_chars_dict_file)
             build_graph(words_dict,chars_dict,save_dataset_file,save_graph_file,args.window_size,args.weighted_graph)
+        print("Saved the file %s"%save_graph_file)
 if __name__ == "__main__":
     main()
 
