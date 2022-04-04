@@ -22,7 +22,7 @@ class Model(object):
 
         self.inputs = None
         self.outputs = None
-        self.embeddings = None
+        #self.embeddings = None
 
         self.loss = 0
         self.accuracy = 0
@@ -37,9 +37,7 @@ class Model(object):
         for layer in self.layers:
             hidden = layer(self.activations[-1])
             self.activations.append(hidden)
-        self.embeddings = self.activations[-2]
-        self.ouptuts = self.activations[-1]
-
+        self.outputs = self.activations[-1]
         # store model variables for the easy access
         variables = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope=self.name)
         self.vars = {var.name for var in variables}

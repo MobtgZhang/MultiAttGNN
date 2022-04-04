@@ -1,3 +1,7 @@
+import os
+import pickle
+from .dictionary import Dictionary
+
 class Dataset(object):
     """An abstract class representing a Dataset.
 
@@ -11,9 +15,10 @@ class Dataset(object):
     def __len__(self):
         raise NotImplementedError
 class RegularDataset(Dataset):
-    def __init__(self,graph_data,words_dict,chars_dict):
+    def __init__(self,load_graph_file,words_dict,chars_dict):
         super(RegularDataset,self).__init__()
-        self.graph_data = graph_data
+        with open(load_graph_file,mode="rb") as rfp:
+            self.graph_data = pickle.load(rfp)
         self.words_dict = words_dict
         self.chars_dict = chars_dict
     def __getitem__(self, index):

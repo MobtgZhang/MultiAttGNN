@@ -1,7 +1,10 @@
 import tensorflow as tf
 
 from .base import Model
-from .layers import Embedding
+
+from .layers import Embedding,GraphGNN,ReadoutLayer
+from .metrics import softmax_cross_entropy,accuracy
+
 # classic model
 class CNNModel(Model):
     r"""
@@ -89,8 +92,46 @@ class GNNING(Model):
     paper title: Every Document Owns Its Structure: Inductive Text Classification via Graph Neural Networks
     paper web site: http://arxiv.org/abs/2004.13826v2
     """
-    def __init__(self, **kwargs):
+    def __init__(self,placeholders,hid_dim,n_class,learning_rate,weight_decay,embedding,**kwargs):
         super(GNNING,self).__init__(**kwargs)
+        self.adj = placeholders['adj']
+        self.weight_decay = weight_decay
+        self.inputs = placeholders['adj-words']
+        self.adj_mask = placeholders['adj-mask']
+        self.labels = placeholders['labels']
+        self.placeholders = placeholders
+        self.hid_dim = hid_dim
+        self.n_class = n_class
+        self.embedding = embedding
+        self.embedding_dim = embedding.shape[1]
+        self.optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate= learning_rate)
+        print('build GNNING network ...')
+        self.build()
+    def _build(self):
+        emb_layer = Embedding(placeholders=self.placeholders,dropout=True)
+        emb_layer.load_pretrain(self.embedding)
+        self.layers.append(emb_layer)
+        self.layers.append(GraphGNN(in_dim = self.embedding_dim,
+                                    out_dim = self.hid_dim,
+                                    placeholders = self.placeholders,
+                                    dropout=True,
+                                    sparse_inputs=False))
+        self.layers.append(ReadoutLayer(self.hid_dim,
+                                        self.n_class,
+                                        placeholders=self.placeholders))
+    def _loss(self):
+        for var in tf.compat.v1.trainable_variables():
+            if 'weights' in var.name or 'bias' in var.name:
+                self.loss += self.weight_decay * tf.nn.l2_loss(var)
+        # Cross entropy error
+        self.loss += softmax_cross_entropy(self.outputs,self.placeholders['labels'])
+    def _accuracy(self):
+        self.accuracy = accuracy(self.outputs,self.placeholders['labels'])
+        self.preds = tf.argmax(self.outputs,1)
+        self.labels = tf.argmax(self.placeholders['labels'],1)
+    def predict(self):
+        return tf.nn.softmax(self.outputs)
+    
 # our model for the project
 class MultiAttGNN(Model):
     r"""

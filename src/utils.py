@@ -299,14 +299,16 @@ def build_dictionary(result_dir,stop_words=None):
                 words_dict.add(word)
             for char in "".join(all_data["content"][idx]):
                 chars_dict.add(char)
+    print("words dictionary",len(words_dict))
+    print("chars dictionary",len(chars_dict))
     save_chars_dict_file = os.path.join(result_dir,"chars_dict.pkl")
     save_words_dict_file = os.path.join(result_dir,"words_dict.pkl")
     words_dict.add_stopwords(stop_words)
     chars_dict.save(save_chars_dict_file)
     words_dict.save(save_words_dict_file)
 def build_embeddings(result_dir,load_embedding_file,save_embedding_file,head=True):
-    save_words_dataset_file = os.path.join(result_dir,"chars_dict.pkl")
-    save_chars_dataset_file = os.path.join(result_dir,"words_dict.pkl")
+    save_chars_dataset_file = os.path.join(result_dir,"chars_dict.pkl")
+    save_words_dataset_file = os.path.join(result_dir,"words_dict.pkl")
 
     chars_dict = Dictionary.load(save_chars_dataset_file)
     words_dict = Dictionary.load(save_words_dataset_file)
@@ -321,21 +323,23 @@ def build_embeddings(result_dir,load_embedding_file,save_embedding_file,head=Tru
         word_nums=0
         for line in tqdm(rfp.readlines(),desc="loading embeddings"):
             data = line.split()
-            word = str(data[0])
+            w = str(data[0])
             vecs = list(map(float,data[1:]))
             word_nums += 1
-            if word in words_dict:
-                word_embeddings[word] = np.array(vecs,dtype=np.float)
+            if w in words_dict:
+                word_embeddings[w] = np.array(vecs,dtype=np.float)
                 embedding_dim = len(vecs)
-            if word in chars_dict:
-                char_embeddings[word] = np.array(vecs,dtype=np.float)
+            if w in chars_dict:
+                char_embeddings[w] = np.array(vecs,dtype=np.float)
                 embedding_dim = len(vecs)
-    for word in tqdm(words_dict,"fixing word embeddings"):
-        if word not in word_embeddings:
-            word_embeddings[word] = np.random.uniform(-0.01,0.01,embedding_dim)
-    for word in tqdm(chars_dict,"fixing char embeddings"):
-        if word not in word_embeddings:
-            char_embeddings[word] = np.random.uniform(-0.01,0.01,embedding_dim)
+    for w in tqdm(words_dict,"fixing word embeddings"):
+        if w not in word_embeddings:
+            word_embeddings[w] = np.random.uniform(-0.01,0.01,embedding_dim)
+    for c in tqdm(chars_dict,"fixing char embeddings"):
+        if c not in char_embeddings:
+            char_embeddings[c] = np.random.uniform(-0.01,0.01,embedding_dim)
+    print("words:",len(word_embeddings),"words dictionary:",len(words_dict))
+    print("chars",len(char_embeddings),"chars dictionary:",len(chars_dict))
     data_dict = {
         "embedding-dim":embedding_dim,
         "word-embeddings":word_embeddings,
@@ -445,6 +449,7 @@ def construct_feed_dict(item,placeholders):
     feed_dict.update({placeholders['chars']: item[2][0]})
     feed_dict.update({placeholders['chars-mask']: item[2][1]})
     feed_dict.update({placeholders['labels']:item[3]})
+    feed_dict.update({placeholders['num_features_nonzero']:item[1][1].shape[1]})
     return feed_dict
 def normalize_adj(adj):
     """Symmetrically normalize adjacency matrix."""
@@ -481,5 +486,27 @@ def batchfy(batch):
         chars_mask[i][:chars_len] = np.array(batch[i]["chars-mask"],dtype=np.int64)
     adj = np.array(adj,dtype=np.float64)
     return idx,(adj,adj_words,adj_mask),(chars,chars_mask),labels
+def load_embeddings(result_data_dir):
+    load_embeddings_file = os.path.join(result_data_dir,"embedding.pkl")
+    load_chars_file = os.path.join(result_data_dir,"chars_dict.pkl")
+    load_words_file = os.path.join(result_data_dir,"words_dict.pkl")
+    words_dict = Dictionary.load(load_words_file)
+    chars_dict = Dictionary.load(load_chars_file)
+    with open(load_embeddings_file,mode="rb") as rfp:
+        embedding_data = pickle.load(rfp)
+        embedding_dim = embedding_data["embedding-dim"]
+        num_chars = len(embedding_data["char-embeddings"])
+        num_words = len(embedding_data["word-embeddings"])
+        print(embedding_data.keys(),(len(embedding_data["char-embeddings"]),len(chars_dict)),
+                (len(embedding_data["word-embeddings"]),len(words_dict)))
+        char_embeddings = np.zeros((num_chars,embedding_dim),dtype=np.float64)
+        word_embeddings = np.zeros((num_words,embedding_dim),dtype=np.float64)
+        for word in tqdm(embedding_data["word-embeddings"],desc='word embedding'):
+            word_embeddings[words_dict[word]] = embedding_data["word-embeddings"][word]
+            
+        for char in tqdm(embedding_data["char-embeddings"],desc='char embedding'):
+            char_embeddings[chars_dict[word]] = embedding_data["char-embeddings"][char]
+    return word_embeddings,char_embeddings
+        
 
 

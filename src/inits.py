@@ -15,7 +15,7 @@ def init_vars(embedding,name=None):
         embedding = np.array(embedding)
     else:
         raise ValueError("Unknown type: %s"%str(type(embedding)))
-    return tf.compat.v1.Variable(embedding,name=name)
+    return tf.compat.v1.Variable(embedding,name=name,dtype=tf.float32)
 def zeros(shape,name=None):
     """
     zeros tensors
