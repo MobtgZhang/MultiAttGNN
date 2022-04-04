@@ -2,11 +2,11 @@ import numpy as np
 import tensorflow as tf
 
 from .base import Layer
-from .inits import glorot,zeros,init_vars
+from .inits import glorot,zeros,init_vars,ones,normal,constant
 from .functional import sparse_dropout,dot
 from .functional import gru_unit
 class Embedding(Layer):
-    def __init__(self,placeholders,vocab_nums=None,embedding_dim=None,embedding=None,dropout=False,sparse_inputs=False,
+    def __init__(self,placeholders,vocab_nums=None,embedding_dim=None,embedding=None,dropout=True,sparse_inputs=False,
                     featureless=False,**kwargs):
         super(Embedding,self).__init__(**kwargs)
         self.inputs = placeholders['adj-words']
@@ -83,13 +83,13 @@ class Linear(Layer):
         else:
             return self.act(output)
 
-class GraphGNN(Layer):
+class GGNNLayer(Layer):
     """
     This is the graph layer for the model.
     """
     def __init__(self,in_dim,out_dim,placeholders,dropout=False,
             sparse_inputs=False,act=tf.nn.relu,featureless=False,steps=2,**kwargs):
-        super(GraphGNN,self).__init__(**kwargs)
+        super(GGNNLayer,self).__init__(**kwargs)
         if dropout:
             self.dropout = placeholders['dropout']
         else:
@@ -99,7 +99,7 @@ class GraphGNN(Layer):
         self.support = placeholders['adj']
         self.sparse_inputs = sparse_inputs
         self.featureless = featureless
-        self.mask = placeholders['adj-mask']
+        self.mask =  tf.expand_dims(placeholders['adj-mask'], -1)
         self.steps = steps
 
         # helper variable for sparse dropout
@@ -113,13 +113,13 @@ class GraphGNN(Layer):
             self.vars['weights_h0'] = glorot([out_dim,out_dim],name='weights_h0')
             self.vars['weights_h1'] = glorot([out_dim,out_dim],name='weights_h1')
         
-            self.vars['bias_encode'] = glorot([in_dim,out_dim],name='bias_encode')
-            self.vars['bias_z0'] = glorot([out_dim,out_dim],name='bias_z0')
-            self.vars['bias_z1'] = glorot([out_dim,out_dim],name='bias_z1')
-            self.vars['bias_r0'] = glorot([out_dim,out_dim],name='bias_r0')
-            self.vars['bias_r1'] = glorot([out_dim,out_dim],name='bias_r1')
-            self.vars['bias_h0'] = glorot([out_dim,out_dim],name='bias_h0')
-            self.vars['bias_h1'] = glorot([out_dim,out_dim],name='bias_h1')
+            self.vars['bias_encode'] = zeros([out_dim],name='bias_encode')
+            self.vars['bias_z0'] = zeros([out_dim],name='bias_z0')
+            self.vars['bias_z1'] = zeros([out_dim],name='bias_z1')
+            self.vars['bias_r0'] = zeros([out_dim],name='bias_r0')
+            self.vars['bias_r1'] = zeros([out_dim],name='bias_r1')
+            self.vars['bias_h0'] = zeros([out_dim],name='bias_h0')
+            self.vars['bias_h1'] = zeros([out_dim],name='bias_h1')
         
 
         if self.logging:
@@ -152,7 +152,7 @@ class ReadoutLayer(Layer):
         
         self.act = act
         self.sparse_inputs = sparse_inputs
-        self.mask = placeholders['adj-mask']
+        self.mask = tf.expand_dims(placeholders['adj-mask'], -1)
 
         with tf.compat.v1.variable_scope(self.name+'_vars'):
             self.vars['weight_att'] = glorot([in_dim,1],name='weight_att')
@@ -185,6 +185,109 @@ class ReadoutLayer(Layer):
         # classification
         out = tf.matmul(g, self.vars['weight_mlp']) + self.vars['bias_mlp']
         return out
+class RCNNLayer(Layer):
+    def __init__(self,in_dim,hid_dim,out_dim,rnn_type,placeholders,dropout=True,**kwargs):
+        super(RCNNLayer,self).__init__(**kwargs)
+        self.in_dim = in_dim
+        self.hid_dim = hid_dim
+        self.out_dim = out_dim
+        self.rnn_type = rnn_type
+        self.context_dim = self.in_dim + self.hid_dim*2 
+        if dropout:
+            self.dropout = placeholders['dropout']
+        else:
+            self.dropout = 0.0
+        def _get_cell(rnn_type,rnn_dim):
+            if rnn_type == "vanilla":
+                return tf.nn.rnn_cell.BasicRNNCell(rnn_dim)
+            elif rnn_type == "lstm":
+                return tf.nn.rnn_cell.BasicLSTMCell(rnn_dim)
+            elif rnn_type == "gru":
+                return tf.nn.rnn_cell.GRUCell(rnn_dim)
+            else:
+                raise TypeError("Unknown type %s"%rnn_type)
+        with tf.compat.v1.variable_scope(self.name+'_vars'):
+            fw_cell = _get_cell(rnn_type,hid_dim)
+            self.fw_cell = tf.nn.rnn_cell.DropoutWrapper(fw_cell, output_keep_prob=1-self.dropout)
+            bw_cell = _get_cell(rnn_type,hid_dim)
+            self.bw_cell = tf.nn.rnn_cell.DropoutWrapper(bw_cell, output_keep_prob=1-self.dropout)        
+            self.vars["fc-weight"] = glorot(shape=(self.context_dim,self.hid_dim),name="fc-weight")
+            self.vars["fc-bias"] = glorot(shape=(self.hid_dim),name="fc-bias")
+            self.vars['weight_mlp'] = glorot([hid_dim,out_dim],name='weight_mlp')
+            self.vars['bias_mlp'] = zeros([out_dim],name='bias_mlp')
+    def _call(self, inputs):
+        (output_fw, output_bw), states = tf.nn.bidirectional_dynamic_rnn(cell_fw=self.fw_cell,
+                                                                             cell_bw=self.bw_cell,
+                                                                             inputs=inputs,dtype=tf.float32)
+        shape = [tf.shape(output_fw)[0], 1, tf.shape(output_fw)[2]]
+        c_left = tf.concat([tf.zeros(shape), output_fw[:, :-1]], axis=1, name="context_left")
+        c_right = tf.concat([output_bw[:, 1:], tf.zeros(shape)], axis=1, name="context_right")
+        last = tf.concat([c_left, inputs, c_right], axis=2, name="last")
+        fc_lin = tf.nn.relu(dot(last,self.vars["fc-weight"])+self.vars["fc-bias"])
+        fc_pool = tf.reduce_max(fc_lin, axis=1)
+        out = dot(fc_pool,self.vars["weight_mlp"])+self.vars["bias_mlp"]
+        return out
+
+class CNNLayer(Layer):
+    def __init__(self,in_dim,num_filters,placeholders,filter_sizes=(2,3,4),dropout=False,
+            sparse_inputs=False,**kwargs):
+        super(CNNLayer,self).__init__(**kwargs)
+        self.filter_sizes = filter_sizes
+        self.in_dim = in_dim
+        self.num_filters = num_filters
+        if dropout:
+            self.dropout = placeholders['dropout']
+        else:
+            self.dropout = 0.0
+        # Convolution and maxpooling layer
+        self.pool_weights = []
+        for idx, filter_size in enumerate(self.filter_sizes):
+            with tf.compat.v1.variable_scope(self.name+'_vars'):
+                filter_shape = [filter_size, self.in_dim,1,self.num_filters]
+                weight_name = "weight-%d-convolution"%idx
+                bias_name = "bias-%d-convolution"%idx
+                self.vars[weight_name] = normal(filter_shape,mean=0.0,stddev=0.1,name=weight_name)
+                self.vars[bias_name] = constant([self.num_filters],0.1,name=bias_name)
+        # Full connected layer 
+        num_filters_total = self.num_filters * len(self.filter_sizes)
+        with tf.compat.v1.variable_scope(self.name+'_vars'):
+            self.vars["weight-mlp"] = glorot(shape=[num_filters_total,self.num_classes],name="weight-mlp")
+            self.vars["bias-mlp"] = constant(shape=[self.n_class],value=0.1,name="bias-mlp")
+    def _call(self, inputs):
+        seq_length = inputs.shape[1]
+        x_inputs = tf.expand_dims(inputs,-1)
+        pooled_outputs = []
+        # Convolution and maxpooling layer
+        for idx,filter_size in enumerate(self.filter_sizes):
+            weight_name = "weight-%d-convolution"%idx
+            bias_name = "bias-%d-convolution"%idx
+            conv = tf.nn.conv2d(
+                    x_inputs,self.vars[weight_name],
+                    strides=[1, 1, 1, 1],
+                    padding="VALID",
+                    name="conv"
+                )
+            hidden = tf.nn.relu(tf.nn.bias_add(conv, self.vars[bias_name]), name="relu")
+            pooled = tf.nn.max_pool(
+                    hidden,
+                    ksize=[1, seq_length - filter_size + 1, 1, 1],
+                    strides=[1, 1, 1, 1],
+                    padding='VALID',
+                    name="pool"
+                )
+            pooled_outputs.append(pooled)
+        # concat the layer with every tensor
+        num_filters_total = self.num_filters * len(self.filter_sizes)
+        h_pool = tf.concat(pooled_outputs, 3)
+        h_pool_flat = tf.reshape(h_pool, [-1, num_filters_total])
+        h_drop = tf.nn.dropout(h_pool_flat,rate = self.dropout)
+
+        # Full connect
+        out = tf.nn.xw_plus_b(h_drop, self.vars["weight-mlp"],self.vars["bias-mlp"],name="scores")
+        return out
+
+
+
 
 class RelAttention(Layer):
     def __init__(self, **kwargs):

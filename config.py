@@ -21,12 +21,11 @@ def get_tf_args():
     flags.DEFINE_integer('hid_dim', 100, 'Dimension of input.') 
     flags.DEFINE_integer('in_dim', 100, 'Dimension of input.') 
     flags.DEFINE_integer('embedding_dim', 200, 'Dimension of embedding layer.')
-    flags.DEFINE_integer('hidden', 96, 'Number of units in hidden layer.') # 32, 64, 96, 128
     flags.DEFINE_integer('steps', 2, 'Number of graph layers.')
-    flags.DEFINE_float('dropout', 0.2, 'Dropout rate (1 - keep probability).')
-    flags.DEFINE_float('weight_decay', 0, 'Weight for L2 loss on embedding matrix.') # 5e-4
-    flags.DEFINE_integer('early_stopping', -1, 'Tolerance for early stopping (# of epochs).')
-    flags.DEFINE_integer('max_degree', 3, 'Maximum Chebyshev polynomial degree.') # Not used
+    flags.DEFINE_float('dropout', 0.2, 'Dropout rate .')
+    flags.DEFINE_float('weight_decay', 5e-4, 'Weight for L2 loss on embedding matrix.') # 5e-4
+    flags.DEFINE_integer('num_filters',5,'The CNN model for num_filters')
+    flags.DEFINE_string('filter_size','2,3,4','The CNN model for filter_size')
     return FLAGS
 
 

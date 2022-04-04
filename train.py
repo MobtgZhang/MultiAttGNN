@@ -5,13 +5,12 @@ from sklearn import metrics
 import tensorflow as tf
 
 from config import get_tf_args
-from src.utils import construct_feed_dict, load_embeddings
+from src.utils import load_embeddings
 from src.dataloader import DataLoader
-from src.dataset import RegularDataset
-from src.utils import batchfy
+from src.dataset import RegularDataset,batchfy,construct_feed_dict
 from src.dictionary import Dictionary
 
-from src.model import GNNING
+from src.model import GNNING,CNNModel
 
 def evaluate(sess,model,features, support, mask, labels, placeholders):
     s_test = time.time()
@@ -82,14 +81,11 @@ def main():
             embedding,_ = load_embeddings(result_data_dir)
             model = GNNING(placeholders,FLAGS.hid_dim,n_class,
                             FLAGS.learning_rate,FLAGS.weight_decay,embedding)
-        elif FLAGS.model == 'gcn_cheby': # not used
-            # support = chebyshev_polynomials(adj, FLAGS.max_degree)
-            num_supports = 1 + FLAGS.max_degree
-            model = GNN()
-        elif FLAGS.model == 'dense': # not used
-            # support = [preprocess_adj(adj)]
-            num_supports = 1
-            model = MLP()
+        elif FLAGS.model == 'cnn':
+            embedding,_ = load_embeddings(result_data_dir)
+            filter_size = [int(v) for v in FLAGS.filter_size.split(',')]
+            model = CNNModel(n_class,FLAGS.num_filters,placeholders,embedding,filter_size,
+                    FLAGS.learning_rate,FLAGS.weight_decay)
         else:
             raise ValueError('Invalid argument for model: ' + str(FLAGS.model))
     else:
@@ -119,17 +115,12 @@ def main():
 
         for item in train_dataloader:
             feed_dict = construct_feed_dict(item,placeholders)
-            #feed_dict.update({})
             outs = sess.run([model.opt_op, model.loss, model.accuracy], feed_dict=feed_dict)
-            print(outs[1])
-            exit()
             train_loss += outs[1]*FLAGS.batch_size
             train_acc += outs[2]*FLAGS.batch_size
         train_loss /= len(train_dataset)
         train_acc /= len(train_dataset)
 
-
-        # validation
         # Validation
         val_cost, val_acc, val_duration, _, _, _ = evaluate(sess,model,val_feature, val_adj, val_mask, val_y, placeholders)
         cost_val.append(val_cost)

@@ -2,7 +2,10 @@ import tensorflow as tf
 
 from .base import Model
 
-from .layers import Embedding,GraphGNN,ReadoutLayer
+from .layers import Embedding
+from .layers import CNNLayer
+from .layers import RCNNLayer
+from .layers import GGNNLayer,ReadoutLayer
 from .metrics import softmax_cross_entropy,accuracy
 
 # classic model
@@ -11,13 +14,50 @@ class CNNModel(Model):
     The implementation for the TextCNN model.
     paper title:Convolutional Neural Networks for Sentence Classification.
     paper web site:https://arxiv.org/abs/1408.5882
+
+    paper title:Character-level Convolutional Networks for Text Classification
+    paper web site:https://arxiv.org/abs/1509.01626
     """
-    def __init__(self,in_dim,placeholders,vocab_nums=None,embedding_dim=None,**kwargs):
+    def __init__(self,n_class,num_filters,placeholders,embedding,
+                filter_sizes=(2,3,4),learning_rate=0.05,weight_decay=0.1,**kwargs):
         super(CNNModel,self).__init__(**kwargs)
-        self.words_embedding = Embedding(placeholders,vocab_nums,embedding_dim)
-        self.chars_embedding = Embedding(placeholders,vocab_nums,embedding_dim)
-    def load_embeddings(self,embedding = None):
-        self.embedding.load_pretrain(embedding)
+        self.weight_decay = weight_decay
+        self.n_class = n_class
+        self.inputs = placeholders['chars']
+        self.labels = placeholders['labels']
+        self.placeholders = placeholders
+        self.filter_sizes = filter_sizes
+        self.num_filters = num_filters
+        self.embedding = embedding
+        self.embedding_dim = embedding.shape[1]
+        self.optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate= learning_rate)
+        print('build GNNING network ...')
+        self.build()
+    def _loss(self):
+        for var in tf.compat.v1.trainable_variables():
+            if 'weights' in var.name or 'bias' in var.name:
+                self.loss += self.weight_decay * tf.nn.l2_loss(var)
+        # Cross entropy error
+        self.loss += softmax_cross_entropy(self.outputs,self.placeholders['labels'])
+    def _build(self):
+        emb_layer = Embedding(placeholders=self.placeholders,dropout=True)
+        emb_layer.load_pretrain(self.embedding)
+        self.layers.append(emb_layer)
+        self.layers.append(CNNLayer(in_dim = self.embedding_dim,
+                                    num_filters=self.num_filters,
+                                    placeholders=self.placeholders,
+                                    filter_sizes=self.filter_sizes,dropout=True))
+    def _accuracy(self):
+        self.accuracy = accuracy(self.outputs,self.placeholders['labels'])
+        self.preds = tf.argmax(self.outputs,1)
+        self.labels = tf.argmax(self.placeholders['labels'],1)
+    def predict(self):
+        return tf.nn.softmax(self.outputs)
+class TextRNN(Model):
+    r"""
+    The implementation for the TextRNN model.
+
+    """
 class BiLSTMModel(Model):
     r"""
     The implementation for the TextRNN model.
@@ -46,8 +86,40 @@ class RCNN(Model):
     paper title: Recurrent Convolutional Neural Networks for Text Classification
     paper web site: https://www.aaai.org/ocs/index.php/AAAI/AAAI15/paper/view/9745/9552
     """
-    def __init__(self, **kwargs):
+    def __init__(self,hid_dim,n_class,placeholders,embedding,weight_decay,learning_rate, **kwargs):
         super(RCNN,self).__init__(**kwargs)
+        self.weight_decay = weight_decay
+        self.hid_dim = hid_dim
+        self.n_class = n_class
+        self.inputs = placeholders['chars']
+        self.labels = placeholders['labels']
+        self.placeholders = placeholders
+        self.embedding = embedding
+        self.embedding_dim = embedding.shape[1]
+        self.optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate= learning_rate)
+        print('build GNNING network ...')
+        self.build()
+    def _loss(self):
+        for var in tf.compat.v1.trainable_variables():
+            if 'weights' in var.name or 'bias' in var.name:
+                self.loss += self.weight_decay * tf.nn.l2_loss(var)
+        # Cross entropy error
+        self.loss += softmax_cross_entropy(self.outputs,self.placeholders['labels'])
+    def _build(self):
+        emb_layer = Embedding(placeholders=self.placeholders,dropout=True)
+        emb_layer.load_pretrain(self.embedding)
+        self.layers.append(emb_layer)
+        self.layers.append(RCNNLayer(self.embedding_dim,
+                                    hid_dim=self.hid_dim,
+                                    out_dim=self.n_class,
+                                    rnn_type=self.rnn_type,
+                                    placeholders=self.placeholders))
+    def _accuracy(self):
+        self.accuracy = accuracy(self.outputs,self.placeholders['labels'])
+        self.preds = tf.argmax(self.outputs,1)
+        self.labels = tf.argmax(self.placeholders['labels'],1)
+    def predict(self):
+        return tf.nn.softmax(self.outputs)
 class DPCNN(Model):
     r"""
     The implementation for the DPCNN model.
@@ -111,14 +183,14 @@ class GNNING(Model):
         emb_layer = Embedding(placeholders=self.placeholders,dropout=True)
         emb_layer.load_pretrain(self.embedding)
         self.layers.append(emb_layer)
-        self.layers.append(GraphGNN(in_dim = self.embedding_dim,
+        self.layers.append(GGNNLayer(in_dim = self.embedding_dim,
                                     out_dim = self.hid_dim,
                                     placeholders = self.placeholders,
                                     dropout=True,
-                                    sparse_inputs=False))
+                                    sparse_inputs=True))
         self.layers.append(ReadoutLayer(self.hid_dim,
                                         self.n_class,
-                                        placeholders=self.placeholders))
+                                        placeholders=self.placeholders,sparse_inputs=True))
     def _loss(self):
         for var in tf.compat.v1.trainable_variables():
             if 'weights' in var.name or 'bias' in var.name:
@@ -135,8 +207,6 @@ class GNNING(Model):
 # our model for the project
 class MultiAttGNN(Model):
     r"""
-    
-
     """
     def __init__(self, **kwargs):
         super(MultiAttGNN,self).__init__(**kwargs)

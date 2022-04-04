@@ -34,4 +34,10 @@ def uniform(shape, scale=0.05, name=None):
     """
     initial = tf.random.uniform(shape, minval=-scale, maxval=scale, dtype=tf.float32)
     return tf.compat.v1.Variable(initial, name=name)
-
+def normal(shape,mean=0.0,stddev=1.0,name=None):
+    initial = tf.truncated_normal(shape,mean=mean,stddev=stddev)
+    return tf.compat.v1.Variable(initial, name=name)
+def constant(shape,value,name=None):
+    initial = tf.constant(value,shape=shape)
+    return tf.compat.v1.Variable(initial, name=name)
+    

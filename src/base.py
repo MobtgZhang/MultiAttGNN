@@ -45,16 +45,15 @@ class Model(object):
         # build metrics
         self._loss()
         self._accuracy()
-
         self.opt_op = self.optimizer.minimize(self.loss)
+
+
     def _build(self):
         raise NotImplementedError
     def predict(self):
         pass
-
     def _loss(self):
         raise NotImplementedError
-
     def _accuracy(self):
         raise NotImplementedError
     def save(self,save_file_name,sess=None):
@@ -96,3 +95,4 @@ class Layer(object):
         for var in self.vars:
             tf.compat.v1.summary.histogram(self.name+'/vars/' + var,self.vars[var])
 
+    
