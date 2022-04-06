@@ -133,9 +133,8 @@ class GGNNLayer(Layer):
             x = tf.nn.dropout(x,rate=self.dropout)
 
         # encode inputs
-        x = dot(x,self.vars['weight_encode'],self.sparse_inputs) + self.vars['bias_encode']
-        
-        output = self.mask * self.act(x)
+        x = self.mask * self.act(x)
+        output = dot(x,self.vars['weight_encode'],self.sparse_inputs) + self.vars['bias_encode']
         for _ in range(self.steps):
             output = gru_unit(self.support, output, self.vars, self.act,
                               self.mask,self.dropout, self.sparse_inputs)

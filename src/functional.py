@@ -62,4 +62,3 @@ def gru_unit(support, x, var, act, mask, dropout, sparse_inputs=False):
     
     return h*z + x*(1-z)
 
-

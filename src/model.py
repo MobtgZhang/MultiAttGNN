@@ -228,6 +228,7 @@ class GNNING(Model):
         self.layers.append(ReadoutLayer(self.hid_dim,
                                         self.n_class,
                                         placeholders=self.placeholders,sparse_inputs=True))
+        self.layers.append(tf.nn.softmax)
     def _loss(self):
         for var in tf.compat.v1.trainable_variables():
             if 'weights' in var.name or 'bias' in var.name:
