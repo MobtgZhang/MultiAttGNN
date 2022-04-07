@@ -224,7 +224,7 @@ class GNNING(Model):
                                     out_dim = self.hid_dim,
                                     placeholders = self.placeholders,
                                     dropout=True,
-                                    sparse_inputs=True))
+                                    sparse_inputs=False))
         self.layers.append(ReadoutLayer(self.hid_dim,
                                         self.n_class,
                                         placeholders=self.placeholders,sparse_inputs=True))
@@ -241,10 +241,30 @@ class GNNING(Model):
         self.labels = tf.argmax(self.placeholders['labels'],1)
     def predict(self):
         return tf.nn.softmax(self.outputs)
-    
+
 # our model for the project
 class MultiAttGNN(Model):
     r"""
+
     """
-    def __init__(self, **kwargs):
+    def __init__(self,placeholders,words_embedding,chars_embedding,learning_rate,weight_decay,**kwargs):
         super(MultiAttGNN,self).__init__(**kwargs)
+        self.adj = placeholders['adj']
+        self.adj_mask = placeholders['adj-mask']
+        self.weight_decay = weight_decay
+        self.x_words = placeholders['adj-words']
+        self.x_chars = placeholders['chars']
+        self.chars_mask = placeholders['chars-mask']
+        
+        self.labels = placeholders['labels']
+        self.placeholders = placeholders
+
+        self.words_embedding = words_embedding
+        self.chars_embedding = chars_embedding
+        self.embedding_dim = words_embedding.shape[1]
+        self.optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate= learning_rate)
+        print('build GNNING network ...')
+        self.build()
+    def _build(self):
+        return super()._build()
+

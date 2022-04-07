@@ -284,6 +284,36 @@ class CNNLayer(Layer):
         # Full connect
         out = tf.nn.xw_plus_b(h_drop, self.vars["weight-mlp"],self.vars["bias-mlp"],name="scores")
         return out
+
+class MultiAttLayer(Layer):
+    def __init__(self,**kwargs):
+        super(MultiAttLayer,self).__init__(**kwargs)
+class SFULayer(Layer):
+    def __init__(self,in_dim,fusion_dim,**kwargs):
+        super(SFULayer,self).__init__(**kwargs)
+        self.in_dim = in_dim
+        self.fusion_dim = fusion_dim
+        with tf.compat.v1.variable_scope(self.name+'_vars'):
+            self.vars['weight-r'] = glorot(shape=(in_dim+fusion_dim,in_dim),name='weight-r')
+            self.vars['weight-g'] = glorot(shape=(in_dim+fusion_dim,in_dim),name='weight-g')
+
+            self.vars['bias-r'] = constant(shape=[in_dim],value=0.1,name='bais-r')
+            self.vars['bias-g'] = constant(shape=[in_dim],value=0.1,name='bais-g')
+    def _call(self,inputs,fusions):
+        rf = tf.concat([inputs,fusions],2)
+        r = tf.nn.tanh(dot(rf,vars['weight-r'])+self.vars['bias-r'])
+        g = tf.nn.sigmoid(dot(rf,vars['weight-g'])+self.vars['bias-g'])
+        o = g*r + (1-g)*inputs
+        return o
+class MatchLayer(Layer):
+    def __init__(self,in_dim,label_size,**kwargs):
+        super(MatchLayer,self).__init__(**kwargs)
+        self.label_size = label_size
+        self.in_dim = in_dim
+    def _call(self, inputs):
+        return super()._call(inputs)
+
+
 class DPCNNLayer(Layer):
     def __init__(self,in_dim,num_filters,kernel_size,n_class,placeholders,dropout=True,**kwargs):
         super(DPCNNLayer,self).__init__(**kwargs)
@@ -343,4 +373,7 @@ class RelAttention(Layer):
         super(RelAttention,self).__init__(**kwargs)
 
 
-
+class MultiInputLayer(Layer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+    

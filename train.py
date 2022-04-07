@@ -12,13 +12,20 @@ from src.dictionary import Dictionary
 
 from src.model import GNNING,CNNModel
 
-def evaluate(sess,model,features, support, mask, labels, placeholders):
+def evaluate(sess,model,dataloader,placeholders):
     s_test = time.time()
-    feed_dict_val = construct_feed_dict(features, support, mask, labels, placeholders)
-    outs_val = sess.run([model.loss, model.accuracy, model.embeddings, model.preds, model.labels], feed_dict=feed_dict_val)
+    val_loss = 0.0
+    val_acc = 0.0
+    for item in dataloader:
+        feed_dict = construct_feed_dict(item,placeholders)
+        outs = sess.run([model.opt_op, model.loss, model.accuracy], feed_dict=feed_dict)
+        val_loss += outs[1]
+        val_acc += outs[2]
+    val_loss /=len(dataloader)
+    val_acc /=len(dataloader)
     e_test = time.time()
     t_sect = e_test - s_test
-    return outs_val,t_sect
+    return val_loss,val_acc,t_sect
 def get_n_class(dataset_name):
     
     if dataset_name == 'aichallenger':
@@ -28,6 +35,10 @@ def get_n_class(dataset_name):
     elif dataset_name == 'wrime':
         n_class =  10
     elif dataset_name == 'clue2020emotions':
+        n_class = 5
+    elif dataset_name == 'weibo4moods':
+        n_class = 4
+    elif dataset_name == 'sst-5':
         n_class = 5
     else:
         raise ValueError('Invalid argument for model: ' + str(dataset_name))
@@ -112,7 +123,8 @@ def main():
 
     for epoch in range(FLAGS.epochs):
         start_time = time.time()
-
+        train_loss = 0.0
+        train_acc = 0.0
         for item in train_dataloader:
             feed_dict = construct_feed_dict(item,placeholders)
             outs = sess.run([model.opt_op, model.loss, model.accuracy], feed_dict=feed_dict)
@@ -122,22 +134,21 @@ def main():
         train_acc /= len(train_dataset)
 
         # Validation
-        val_cost, val_acc, val_duration, _, _, _ = evaluate(sess,model,val_feature, val_adj, val_mask, val_y, placeholders)
-        cost_val.append(val_cost)
+        val_loss,val_acc,val_duration = evaluate(sess,model,validate_dataloader,placeholders)
+        cost_val.append(val_loss)
         
         # Test
-        test_cost, test_acc, test_duration, embeddings, pred, labels = evaluate(sess,model,test_feature, test_adj, test_mask, test_y, placeholders)
+        test_loss,test_acc,test_duration = evaluate(sess,model,validate_dataloader,placeholders)
         
         if val_acc >= best_val:
             best_val = val_acc
             best_epoch = epoch
             best_acc = test_acc
-            best_cost = test_cost
-            preds = pred
+            best_cost = test_loss
         # Print results
         end_time = time.time()
         print("Epoch:", '%04d' % (epoch + 1), "train_loss=", "{:.5f}".format(train_loss),
-            "train_acc=", "{:.5f}".format(train_acc), "val_loss=", "{:.5f}".format(val_cost),
+            "train_acc=", "{:.5f}".format(train_acc), "val_loss=", "{:.5f}".format(val_loss),
             "val_acc=", "{:.5f}".format(val_acc), "test_acc=", "{:.5f}".format(test_acc), 
             "time=", "{:.5f}".format(end_time- start_time))
     print("Optimization Finished!")
